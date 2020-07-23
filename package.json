@@ -1,6 +1,6 @@
 {
   "name": "react-native-childprocess",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Childprocess implemented",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",

@@ -46,10 +46,8 @@ RCT_REMAP_METHOD(spawn,
 }
 
 -(void)subProcessLoop: (NSArray *)args{
-	NSTask *task = args[0];
+	NSFileHandle *handle = args[0];
 	NSNumber *cmdId = args[1];
-
-	//[task launch];
 
 	while(true){
 		NSString *output = [[NSString alloc] initWithData:[handle availableData] encoding:NSASCIIStringEncoding];

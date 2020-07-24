@@ -1,9 +1,15 @@
-import { NativeModules } from 'react-native';
+import {NativeModules} from 'react-native';
 
-type ChildprocessType = {
-  spawn(cmd: string, params?: any[], options?: any, stdoutCallback?: (line:string)=>void): Promise<number>;
-};
+const Childprocess = NativeModules.Childprocess;
 
-const { Childprocess } = NativeModules;
-
-export default Childprocess as ChildprocessType;
+export async function spawn(cmd: string, args?: string[], options?: any, stdout?: (output: string) => void, stderr?: (err: string) => void) {
+	const cmdId = await Childprocess.spawn(cmd, args, options);
+	Childprocess.addListener(
+		'stdout',
+		({output, id}) => {
+			if(id === cmdId){
+				stdout && stdout(output);
+			}
+		}
+	);
+}

@@ -2,41 +2,60 @@
 
 @implementation Childprocess
 
+int ID_INC = 0;
+
 RCT_EXPORT_MODULE()
 
-// Example method
-// See // https://facebook.github.io/react-native/docs/native-modules-ios
 RCT_REMAP_METHOD(spawn,
-									spawnWithCmd:(nonnull NSString*)cmd withParams:(nullable NSArray*)params withOptions:(nullable NSDictionary*)options withStdoutCallback:(RCTResponseSenderBlock)stdoutCallback
+								 spawnWithCmd:(nonnull NSString*)cmd
+								 withArguments:(nonnull NSArray*)arguments
+								 withOptions:(nonnull NSDictionary*)options
 								 withResolver:(RCTPromiseResolveBlock)resolve
-								 withRejecter:(RCTPromiseRejectBlock)reject)
+								 withRejecter:(RCTPromiseRejectBlock)reject
+								 )
 {
-	//NSNumber *result = @([a floatValue] * [b floatValue]);
-	[self performSelectorInBackground:@selector(executeCommand:) withObject:@"ping baidu.com"];
-
-	resolve(0);
+	NSNumber *cmdId = [self executeCommand:cmd arguments:arguments];
+	resolve(cmdId);
 }
 
-- (NSString *)executeCommand: (NSString *)cmd {
-	NSString *output = [NSString string];
-	FILE *pipe = popen([cmd cStringUsingEncoding: NSASCIIStringEncoding], "r+");
-	if (!pipe) {
-		return @"";
-	}
-	char buf[102400];
-	while(fgets(buf, sizeof(buf), pipe) != NULL) {
-		//        if('\n' == buf[strlen(buf)-1]) {
-		//            buf[strlen(buf)-1] = '\0';
-		//        }
-		NSString *bufStr = [[NSString alloc] initWithUTF8String:buf];
-		NSLog(@"%@", bufStr);
-		stdoutCallback(@[[NSNull null], bufStr]);
-		output = [output stringByAppendingFormat: @"%s ", buf];
-	}
+- (NSArray<NSString *> *)supportedEvents
+{
+  return @[@"stdout"];
+}
 
-	pclose(pipe);
-	return output;
+- (NSNumber *)executeCommand: (NSString *)cmd arguments:(NSArray*)arguments {
+	NSNumber *cmdId = @(ID_INC++);
 
+	/*NSTask *task = [[NSTask alloc] init];
+	[task setLaunchPath:cmd];
+	[task setArguments:arguments];*/
+
+	NSError *error;
+	NSTask *task = [NSTask launchedTaskWithExecutableURL:[NSURL URLWithString:cmd] arguments:arguments error:&error terminationHandler:^(NSTask *task) {
+
+	}];
+
+	NSPipe *pipe = [NSPipe pipe];
+	[task setStandardOutput:pipe];
+	[task setStandardError:pipe];
+	NSFileHandle *handle = [pipe fileHandleForReading];
+
+	[self performSelectorInBackground:@selector(subProcessLoop:) withObject:@[handle, cmdId]];
+
+	return cmdId;
+}
+
+-(void)subProcessLoop: (NSArray *)args{
+	NSTask *task = args[0];
+	NSNumber *cmdId = args[1];
+
+	//[task launch];
+
+	while(true){
+		NSString *output = [[NSString alloc] initWithData:[handle availableData] encoding:NSASCIIStringEncoding];
+		NSLog(@"cmd[%@]> %@", cmdId, output);
+		[self sendEventWithName:@"stdout" body:@{@"id": cmdId, @"output": output}];
+	}
 }
 
 @end

@@ -2,12 +2,12 @@ import {NativeModules} from 'react-native';
 
 const Childprocess = NativeModules.Childprocess;
 
-Childprocess.addListener(
+/*Childprocess.addListener(
 	'stdout',
-	() => {
-		console.log(arguments);
+	(...args) => {
+		console.log(args);
 	}
-);
+);*/
 
 export async function spawn(cmd: string, args?: string[], options?: any, stdout?: (output: string) => void, stderr?: (err: string) => void) {
 	const cmdId = await Childprocess.spawn(cmd, args, options);

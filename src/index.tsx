@@ -30,7 +30,10 @@ childprocessEmitter.addListener(
 	onEvent,
 );
 
-export async function spawn(cmd: string, args?: string[], options?: SpawnOptions = {}) {
+export async function spawn(cmd: string, args?: string[], options?: SpawnOptions) {
+	if(options == undefined){
+		options = {};
+	}
 	const {pwd, stdout, stderr, terminate} = options;
 	let opt = {
 		pwd,

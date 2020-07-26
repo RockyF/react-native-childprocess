@@ -6,16 +6,29 @@ Childprocess implemented
 
 ```sh
 npm install react-native-childprocess
+or
+yarn add react-native-childprocess
 ```
 
 ## Usage
 
 ```js
-import Childprocess from "react-native-childprocess";
+import {spawn, kill} from 'react-native-childprocess'
 
-// ...
+let cmdID;
 
-const result = await Childprocess.multiply(3, 7);
+export async function start(){
+	cmdID = await spawn('/sbin/ping', ['google.com'], {
+		pwd: project.path,
+		stdout: (output) => {
+			console.log('>>>', output)
+		}
+	});
+}
+
+export async function stop(){
+	kill(cmdID);
+}
 ```
 
 ## Contributing

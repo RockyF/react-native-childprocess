@@ -12,7 +12,10 @@ interface SpawnOptions {
 	terminate?: (code: number) => void,
 }
 
-export async function spawn(cmd: string, args?: string[], options?: SpawnOptions = {}): Promise<number> {
+export async function spawn(cmd: string, args?: string[], options?: SpawnOptions): Promise<number> {
+	if(options == undefined){
+		options = {};
+	}
 	const {pwd, stdout, stderr, terminate} = options;
 	let opt = {
 		pwd,

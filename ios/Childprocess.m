@@ -7,12 +7,16 @@ int ID_INC = 0;
 
 NSMutableDictionary *tasks;
 
-
 - (id)init {
 	if (self = [super init]) {
 		tasks = [NSMutableDictionary dictionary];
 	}
 	return self;
+}
+
++ (BOOL)requiresMainQueueSetup
+{
+	return YES;
 }
 
 RCT_EXPORT_MODULE()
@@ -81,7 +85,7 @@ RCT_REMAP_METHOD(kill,
 		if(data.length > 0) {
 			NSString *output = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
 			NSLog(@"cmd[%@][%@]> %@", cmdID, type, output);
-			[self sendEventWithName:type body:@{@"id": cmdID, @"output": output}];
+			[self sendEventWithName:type body:@{@"event": type, @"id": cmdID, @"output": output}];
 		}
 	};
 
@@ -92,13 +96,15 @@ RCT_REMAP_METHOD(kill,
 		if(data.length > 0){
 			NSString *output = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
 			NSLog(@"cmd[%@][%@]> %@", cmdID, type, output);
-			[self sendEventWithName:type body:@{@"id": cmdID, @"output": output}];
+			[self sendEventWithName:type body:@{@"event": type, @"id": cmdID, @"output": output}];
 		}
 	};
 
 	task.terminationHandler = ^void(NSTask *task) {
+		NSString *type = @"terminate";
+
 		NSLog(@"cmd[%@][%@]", cmdID, @"terminate");
-		[self sendEventWithName:@"terminate" body:nil];
+		[self sendEventWithName:@"terminate" body:@{@"event": type}];
 	};
 
 	tasks[cmdID] = task;

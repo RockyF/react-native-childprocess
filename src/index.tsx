@@ -53,13 +53,13 @@ export async function spawn(cmd: string, args?: string[], options?: SpawnOptions
 }
 
 export async function kill(cmdID) {
-	removeSubscriptions(cmdID);
-
 	try {
 		await Childprocess.kill(cmdID)
 	} catch (e) {
 		console.log(e);
 	}
+
+	removeSubscriptions(cmdID);
 }
 
 function removeSubscriptions(cmdID) {

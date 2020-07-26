@@ -1,59 +1,112 @@
 #import "Childprocess.h"
+#import <React/RCTUtils.h>
 
 @implementation Childprocess
 
 int ID_INC = 0;
 
+NSMutableDictionary *tasks;
+
+
+- (id)init {
+	if (self = [super init]) {
+		tasks = [NSMutableDictionary dictionary];
+	}
+	return self;
+}
+
 RCT_EXPORT_MODULE()
 
 RCT_REMAP_METHOD(spawn,
-								 spawnWithCmd:(nonnull NSString*)cmd
-								 withArguments:(nonnull NSArray*)arguments
-								 withOptions:(nonnull NSDictionary*)options
-								 withResolver:(RCTPromiseResolveBlock)resolve
-								 withRejecter:(RCTPromiseRejectBlock)reject
-								 )
-{
-	NSNumber *cmdId = [self executeCommand:cmd arguments:arguments];
-	resolve(cmdId);
+		spawnWithCmd:
+		(nonnull NSString*)cmd
+	withArguments:(nonnull NSArray*)arguments
+	withOptions:(nonnull NSDictionary*)options
+	withResolver:(RCTPromiseResolveBlock)resolve
+	withRejecter:(RCTPromiseRejectBlock)reject
+) {
+	NSNumber *cmdID = [self executeCommand:cmd arguments:arguments options:options];
+	if (cmdID < (NSNumber *) 0) {
+		reject(@"failed", @"execute command failed", RCTErrorWithMessage(@"execute command failed"));
+	} else {
+		resolve(cmdID);
+	}
 }
 
-- (NSArray<NSString *> *)supportedEvents
-{
-  return @[@"stdout"];
+RCT_REMAP_METHOD(kill,
+		killWithCmdID:
+		(nonnull NSNumber*)cmdID
+	withResolver:(RCTPromiseResolveBlock)resolve
+	withRejecter:(RCTPromiseRejectBlock)reject
+) {
+	NSTask *task = tasks[cmdID];
+	if (task == nil) {
+		reject(@"invalid cmdID", @"invalid cmdID", RCTErrorWithMessage(@"invalid cmdID"));
+	} else {
+		if (task.running) {
+			[task terminate];
+		}
+		[tasks removeObjectForKey:cmdID];
+		resolve(cmdID);
+	}
 }
 
-- (NSNumber *)executeCommand: (NSString *)cmd arguments:(NSArray*)arguments {
-	NSNumber *cmdId = @(ID_INC++);
+- (NSArray<NSString *> *)supportedEvents {
+	return @[@"stdout", @"stderr", @"terminate"];
+}
 
-	/*NSTask *task = [[NSTask alloc] init];
-	[task setLaunchPath:cmd];
-	[task setArguments:arguments];*/
+- (NSNumber *)executeCommand:(NSString *)cmd arguments:(NSArray *)arguments options:(NSDictionary *)options {
+	NSNumber *cmdID = @(++ID_INC);
+
+	NSTask *task = [[NSTask alloc] init];
+	[task setExecutableURL:[NSURL fileURLWithPath:cmd]];
+	[task setArguments:arguments];
+
+	NSString *pwd = [options valueForKey:@"pwd"];
+	if(pwd != nil){
+		[task setCurrentDirectoryURL:[NSURL fileURLWithPath:pwd]];
+	}
+
+	NSPipe *stdoutPipe = [NSPipe pipe];
+	NSPipe *stderrPipe = [NSPipe pipe];
+	[task setStandardOutput:stdoutPipe];
+	[task setStandardError:stderrPipe];
+	NSFileHandle *stdoutHandle = [stdoutPipe fileHandleForReading];
+	NSFileHandle *stderrHandle = [stderrPipe fileHandleForReading];
+
+	stdoutHandle.readabilityHandler = ^void(NSFileHandle *handle) {
+		NSString *type = @"stdout";
+
+		NSData *data = [handle availableData];
+		if(data.length > 0) {
+			NSString *output = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
+			NSLog(@"cmd[%@][%@]> %@", cmdID, type, output);
+			[self sendEventWithName:type body:@{@"id": cmdID, @"output": output}];
+		}
+	};
+
+	stderrHandle.readabilityHandler = ^void(NSFileHandle *handle) {
+		NSString *type = @"stderr";
+
+		NSData *data = [handle availableData];
+		if(data.length > 0){
+			NSString *output = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
+			NSLog(@"cmd[%@][%@]> %@", cmdID, type, output);
+			[self sendEventWithName:type body:@{@"id": cmdID, @"output": output}];
+		}
+	};
+
+	task.terminationHandler = ^void(NSTask *task) {
+		NSLog(@"cmd[%@][%@]", cmdID, @"terminate");
+		[self sendEventWithName:@"terminate" body:nil];
+	};
+
+	tasks[cmdID] = task;
 
 	NSError *error;
-	NSTask *task = [NSTask launchedTaskWithExecutableURL:[NSURL URLWithString:cmd] arguments:arguments error:&error terminationHandler:^(NSTask *task) {
+	[task launchAndReturnError:&error];
 
-	}];
-
-	NSPipe *pipe = [NSPipe pipe];
-	[task setStandardOutput:pipe];
-	[task setStandardError:pipe];
-	NSFileHandle *handle = [pipe fileHandleForReading];
-
-	[self performSelectorInBackground:@selector(subProcessLoop:) withObject:@[handle, cmdId]];
-
-	return cmdId;
-}
-
--(void)subProcessLoop: (NSArray *)args{
-	NSFileHandle *handle = args[0];
-	NSNumber *cmdId = args[1];
-
-	while(true){
-		NSString *output = [[NSString alloc] initWithData:[handle availableData] encoding:NSASCIIStringEncoding];
-		NSLog(@"cmd[%@]> %@", cmdId, output);
-		[self sendEventWithName:@"stdout" body:@{@"id": cmdId, @"output": output}];
-	}
+	return error == nil ? cmdID : @(-1);
 }
 
 @end

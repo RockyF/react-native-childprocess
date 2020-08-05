@@ -3,8 +3,6 @@
 
 @implementation Childprocess
 
-int ID_INC = 0;
-
 NSMutableDictionary *tasks;
 
 - (id)init {
@@ -60,7 +58,7 @@ RCT_REMAP_METHOD(kill,
 }
 
 - (NSNumber *)executeCommand:(NSString *)cmd arguments:(NSArray *)arguments options:(NSDictionary *)options {
-	NSNumber *cmdID = @(++ID_INC);
+	NSNumber *cmdID = @(++_ID_INC);
 
 	NSTask *task = [[NSTask alloc] init];
 	[task setExecutableURL:[NSURL fileURLWithPath:cmd]];
